@@ -6,10 +6,11 @@
     <b>"Autobots, Rolls Out!!"<b> -Optimus Prime
 </h3>
 
-## Neural Nets
+## Neural Networks
 1. Micrograd
 2. Makemore
 3. PyTorch
+4. Project
 
 ## Transformers
 ### T - Natural Language Processing (NLP)
