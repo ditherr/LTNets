@@ -1,4 +1,10 @@
-python==3.10.12
-transformers==4.42.4
+ipykernel
+pandas
+numpy
+torch==2.4.1
 datasets==2.21.0
 requests
+transformers[sentencepiece]
+matplotlib
+plotly
+scikit-learn
