@@ -12,6 +12,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu' # power device
 eval_iters = 200
 n_embd = 384
 n_head = 6
+n_layer = 6
 # ------------
 
 torch.manual_seed(1337)
@@ -92,20 +93,60 @@ class Head(nn.Module):
         return out
 
 
+# Multi-Head Self-Attention
+class MultiHeadAttention(nn.Module):
+    """ multiple heads of self-attention in parallel.
+        Allows the model to jointly attend to information from different representation subspaces at difference positions.
+    """
+    def __init__(self, num_heads, head_size):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)]) # Create multiple heads
+        self.proj = nn.Linear(head_size * num_heads, n_embd)
+        
+    def forward(self, x):
+        # concatenated heads
+        out = torch.cat([h(x) for h in self.heads], dims=-1) # The output of the Self-Attention
+        out = self.proj(out)  # Apply the projection layer
+        return out
+
+
 # Simple Linear Model
 class FeedForward(nn.Module):
     """ a simple linear layer followed by a non-linearity """
     def __init__(self, n_embd):
         super().__init__()
         # The First layer is for the Feed Forward
+        # The last layer is the projection layer that going back into the residual pathway
+        # Inside the inner layer need to multiply by 4 -- based on the paper
         self.net = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd),
         )
         
     def forward(self, x):
         return self.net(x)
-    
+
+
+# Block (Decoders)
+class Block(nn.Module):
+    """ Transformer block: communication followed by computation """
+    def __init__(self, n_embd, n_head):
+        # n_embd: embedding dimension, n_head: the numbers of heads we'd like
+        super().__init__()
+        head_size = n_embd // n_head
+        self.sa = MultiHeadAttention(n_head, head_size)
+        self.ffwd = FeedForward(n_embd) # Add Addition in Feed Forward
+        self.ln1 = nn.LayerNorm(n_embd) # Add Normalization
+        self.ln2 = nn.LayerNorm(n_embd)
+        
+    def forward(self, x):
+        ## Residual Connection with Addition and Normalization
+        ## PreNorm Formulation -- Applying the LayerNorm before the transformation (reshuffling of the layerNorms)
+        x = x + self.sa(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
+        return x
+
     
 # super simple bigram model
 class GPTLanguageModel(nn.Module):
@@ -115,9 +156,19 @@ class GPTLanguageModel(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
         self.position_embedding_table = nn.Embedding(block_size, n_embd) # positional encoding (each token is positioned -- get the embeddings)
-        self.sa_head = Head(n_embd, vocab_size) # Single Head of Self Attention
-        self.ffwd = FeedForward(n_embd) # to think the data individualy after the Multi-Head SA
+        # self.sa_head = Head(n_embd, vocab_size) # Single Head of Self Attention
+        # self.sa_heads = MultiHeadAttention(4, n_embd//4) # Multi Head --- 4 heads of 8-dimensional self-attention
+        # self.ffwd = FeedForward(n_embd) # to think the data individualy after the Multi-Head SA
+        # self.blocks = nn.Sequential(
+        #     Block(n_embd, n_head=4),
+        #     Block(n_embd, n_head=4),
+        #     Block(n_embd, n_head=4),
+        #     nn.LayerNorm(n_embd)
+        # )
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head=4) for _ in range(n_layer)]) # Create blocks based on desired n_layer
+        self.ln_f = nn.LayerNorm(n_embd) # Final layer norm
         self.lm_head = nn.Linear(n_embd, vocab_size) # language model head (to get the logits)
+        
         
     def forward(self, idx, targets=None):
         B, T = idx.shape
@@ -126,11 +177,13 @@ class GPTLanguageModel(nn.Module):
         tok_emb = self.token_embedding_table(idx) # (B,T,C)
         pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T, C) -- arranged from 0 to T-1
         x = tok_emb + pos_emb # (broadcasting up) --> B, T, C
-        x = self.sa_head(x) # apply one head self-attention (B, T, C)
-        x = self.ffwd(x) # (B, T, C)
+        # x = self.sa_head(x) # apply one head self-attention (B, T, C)
+        # x = self.sa_heads(x)
+        # x = self.ffwd(x) # (B, T, C)
+        x = self.blocks(x) # (B, T, C) 
+        x = self.ln_f(x) # (B, T, C)
         logits = self.lm_head(x) # (B,T,vocab_size)
         
-
         if targets is None:
             loss = None
         else:
@@ -144,8 +197,10 @@ class GPTLanguageModel(nn.Module):
     def generate(self, idx, max_new_tokens):
         # idx is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
+            # crop idx to the last block_size tokens
+            idx_cond = idx[:, -block_size:]
             # get the predictions
-            logits, loss = self(idx)
+            logits, loss = self(idx_cond)
             # focus only on the last time step
             logits = logits[:, -1, :] # becomes (B, C)
             # apply softmax to get probabilities
