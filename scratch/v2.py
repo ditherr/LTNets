@@ -3,14 +3,14 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 # hyperparameters
-batch_size = 32 # how many independent sequences will we process in parallel?
-block_size = 8 # what is the maximum context length for predictions?
+batch_size = 64 # how many independent sequences will we process in parallel?
+block_size = 256 # what is the maximum context length for predictions?
 max_iters = 5000 # increase iterations because learning rate decreasing
-eval_interval = 300
-learning_rate = 1e-3 # Self Attention can't tollerate the higher lr
+eval_interval = 500
+learning_rate = 3e-4 # Self Attention can't tollerate the higher lr
 device = 'cuda' if torch.cuda.is_available() else 'cpu' # power device
 eval_iters = 200
-n_embd = 32
+n_embd = 384
 n_head = 6
 n_layer = 6
 dropout = 0.2
@@ -233,6 +233,9 @@ class GPTLanguageModel(nn.Module):
 model = GPTLanguageModel(vocab_size)
 m = model.to(device)
 
+# print the number of parameters in the model
+print(sum(p.numel() for p in m.parameters())/1e6, 'M parameters') # 10M params
+
 # create a PyTorch optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
@@ -256,3 +259,4 @@ for iter in range(max_iters):
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
+#open('more.txt', 'w').write(decode(m.generate(context, max_new_tokens=10000)[0].tolist()))
