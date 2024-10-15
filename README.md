@@ -10,7 +10,7 @@ This repository is the result of my **Personal Learning about Neural Networks, L
 
 ## 🧩Materials
 
-### 🧬Neural Networks
+### 🧬Neural Networks - (*NLP*)
 1. [Micrograd](https://github.com/karpathy/micrograd.git)
 2. [Makemore](https://github.com/karpathy/makemore.git)
 3. [NanoGPT](https://github.com/karpathy/nanoGPT)
@@ -43,6 +43,8 @@ A list of papers, videos, and books related to this repository.
 | BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension | - | <a href="https://arxiv.org/abs/1910.13461"><img src="https://img.shields.io/badge/paper-white"></a>
 | The Pile: An 800GB Dataset of Diverse Text for Language Modeling | - | <a href="https://arxiv.org/abs/2101.00027"><img src="https://img.shields.io/badge/paper-white"></a>
 | Model Cards for Model Reporting | - | <a href="https://arxiv.org/abs/1810.03993"><img src="https://img.shields.io/badge/paper-white"></a>
+| Deep Residual Learning for Image Recognition | - | <a href="https://arxiv.org/abs/1512.03385"><img src="https://img.shields.io/badge/paper-white"></a>
+| Dropout: A Simple Way to Prevent Neural Networks from Overfitting | - | <a href="https://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf"><img src="https://img.shields.io/badge/paper-white"></a>
 | - | - | - |
 
 ### 👨‍🏫Courses
@@ -74,4 +76,12 @@ A list of papers, videos, and books related to this repository.
 | Title | Description | Link |
 |-------|-------------|------|
 | 🚀Neural Networks: Zero to Hero | - | <a href="https://www.youtube.com/playlist?list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ"><img src="https://img.shields.io/badge/video-red"></a> |
+| - | - | - |
+
+
+### 📚Others
+| Title | Description | Link |
+|-------|-------------|------|
+| The Illustrated Transformer | - | <a href="https://jalammar.github.io/illustrated-transformer/"><img src="https://img.shields.io/badge/link-orange"></a> |
+| Introduction to Attention Mechanism | - | <a href="https://erdem.pl/2021/05/introduction-to-attention-mechanism"><img src="https://img.shields.io/badge/link-orange"></a> |
 | - | - | - |
