@@ -5,14 +5,15 @@ from torch.nn import functional as F
 # hyperparameters
 batch_size = 32 # how many independent sequences will we process in parallel?
 block_size = 8 # what is the maximum context length for predictions?
-max_iters = 3000 # increase iterations because learning rate decreasing
+max_iters = 5000 # increase iterations because learning rate decreasing
 eval_interval = 300
-learning_rate = 1e-2 # Self Attention can't tollerate the higher lr
+learning_rate = 1e-3 # Self Attention can't tollerate the higher lr
 device = 'cuda' if torch.cuda.is_available() else 'cpu' # power device
 eval_iters = 200
-n_embd = 384
+n_embd = 32
 n_head = 6
 n_layer = 6
+dropout = 0.2
 # ------------
 
 torch.manual_seed(1337)
@@ -76,6 +77,7 @@ class Head(nn.Module):
         self.query = nn.Linear(n_embd, head_size, bias=False)
         self.value = nn.Linear(n_embd, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size))) # Get the lower triangular matrix
+        self.dropout = nn.Dropout(dropout) # Add a dropout
         
     def forward(self, x):
         B, T, C = x.shape
@@ -86,6 +88,7 @@ class Head(nn.Module):
         weight = q @ k.transpose(-2, -1) * C**-0.5 # (B, T, hs) @ (B, hs, T) --> (B, T, T)
         weight = weight.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
         weight = F.softmax(weight, dim=-1) # (B, T, T)
+        weight = self.dropout(weight)
         
         # Perform Weight Aggregation of the values
         v = self.value(x) # (B, T, hs)
@@ -102,11 +105,13 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)]) # Create multiple heads
         self.proj = nn.Linear(head_size * num_heads, n_embd)
+        self.dropout = nn.Dropout(dropout)
         
     def forward(self, x):
         # concatenated heads
         out = torch.cat([h(x) for h in self.heads], dims=-1) # The output of the Self-Attention
-        out = self.proj(out)  # Apply the projection layer
+        # out = self.proj(out)  # Apply the projection layer
+        out = self.dropout(self.proj(out))
         return out
 
 
@@ -118,10 +123,12 @@ class FeedForward(nn.Module):
         # The First layer is for the Feed Forward
         # The last layer is the projection layer that going back into the residual pathway
         # Inside the inner layer need to multiply by 4 -- based on the paper
+        # Add dropout into out networks
         self.net = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout)
         )
         
     def forward(self, x):
@@ -169,6 +176,16 @@ class GPTLanguageModel(nn.Module):
         self.ln_f = nn.LayerNorm(n_embd) # Final layer norm
         self.lm_head = nn.Linear(n_embd, vocab_size) # language model head (to get the logits)
         
+        # Get the initial weight
+        self.apply(self._init_weights)
+    
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
         
     def forward(self, idx, targets=None):
         B, T = idx.shape
