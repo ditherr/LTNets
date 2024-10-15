@@ -10,6 +10,8 @@ eval_interval = 300
 learning_rate = 1e-2 # Self Attention can't tollerate the higher lr
 device = 'cuda' if torch.cuda.is_available() else 'cpu' # power device
 eval_iters = 200
+n_embd = 384
+n_head = 6
 # ------------
 
 torch.manual_seed(1337)
@@ -46,6 +48,7 @@ def get_batch(split):
     x, y = x.to(device), y.to(device)
     return x, y
 
+
 # everything happens inside the function, we will not call/do the backwards (we don't intend to do the backward prop)
 @torch.no_grad()
 def estimate_loss():
@@ -63,6 +66,47 @@ def estimate_loss():
     return out
 
 
+# Self-Attention Head
+class Head(nn.Module):
+    """ one head of self-attention """
+    def __init__(self, head_size):
+        super().__init__()
+        self.key = nn.Linear(n_embd, head_size, bias=False)
+        self.query = nn.Linear(n_embd, head_size, bias=False)
+        self.value = nn.Linear(n_embd, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size))) # Get the lower triangular matrix
+        
+    def forward(self, x):
+        B, T, C = x.shape
+        k = self.key(x)   # (B, T, hs)
+        q = self.query(x) # (B, T, hs)
+        
+        # compute Attentiion Score ("affinities")
+        weight = q @ k.transpose(-2, -1) * C**-0.5 # (B, T, hs) @ (B, hs, T) --> (B, T, T)
+        weight = weight.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
+        weight = F.softmax(weight, dim=-1) # (B, T, T)
+        
+        # Perform Weight Aggregation of the values
+        v = self.value(x) # (B, T, hs)
+        out = weight @ v # (B, T, T) @ (B, T, hs) --> (B, T, hs)
+        return out
+
+
+# Simple Linear Model
+class FeedForward(nn.Module):
+    """ a simple linear layer followed by a non-linearity """
+    def __init__(self, n_embd):
+        super().__init__()
+        # The First layer is for the Feed Forward
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+        )
+        
+    def forward(self, x):
+        return self.net(x)
+    
+    
 # super simple bigram model
 class GPTLanguageModel(nn.Module):
 
@@ -70,12 +114,22 @@ class GPTLanguageModel(nn.Module):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
-    
+        self.position_embedding_table = nn.Embedding(block_size, n_embd) # positional encoding (each token is positioned -- get the embeddings)
+        self.sa_head = Head(n_embd, vocab_size) # Single Head of Self Attention
+        self.ffwd = FeedForward(n_embd) # to think the data individualy after the Multi-Head SA
+        self.lm_head = nn.Linear(n_embd, vocab_size) # language model head (to get the logits)
+        
     def forward(self, idx, targets=None):
         B, T = idx.shape
         
         # idx and targets are both (B,T) tensor of integers
-        logits = self.token_embedding_table(idx) # (B,T,C)
+        tok_emb = self.token_embedding_table(idx) # (B,T,C)
+        pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T, C) -- arranged from 0 to T-1
+        x = tok_emb + pos_emb # (broadcasting up) --> B, T, C
+        x = self.sa_head(x) # apply one head self-attention (B, T, C)
+        x = self.ffwd(x) # (B, T, C)
+        logits = self.lm_head(x) # (B,T,vocab_size)
+        
 
         if targets is None:
             loss = None
