@@ -11,6 +11,7 @@ This repository is the result of my **Personal Learning about Neural Networks, L
 ## 🧩Materials
 
 ### 🧬Neural Networks - (*NLP*)
+Recent Grind Neural Networks:
 1. [Micrograd](https://github.com/karpathy/micrograd.git)
 2. [Makemore](https://github.com/karpathy/makemore.git)
 3. [NanoGPT](https://github.com/karpathy/nanoGPT)
@@ -25,8 +26,11 @@ This repository is the result of my **Personal Learning about Neural Networks, L
 5. Datasets
 6. The Tokenizers
 
+### 🤖LLMs From Scratch
+(soon)
+
 ## 🗃️Documentations
-A list of papers, videos, and books related to this repository.
+List of papers, videos, and books related to this repository.
 
 ### 📜Papers
 
@@ -59,7 +63,7 @@ A list of papers, videos, and books related to this repository.
 | CS50: Introduction to Artificial Intelligence with Python | - | <a href="https://cs50.harvard.edu/ai/2024/"><img src="https://img.shields.io/badge/course-green"></a>
 | - | - | - |
 
-#### 🤖AI/ML x LLM
+#### 🤖AI/ML x LLMs
 | Title | Description | Link |
 |-------|-------------|------|
 | Neural Networks: Zero to Hero | - | <a href="https://karpathy.ai/zero-to-hero.html"><img src="https://img.shields.io/badge/course-blue"></a> |
